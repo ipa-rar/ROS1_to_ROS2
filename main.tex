@@ -1,0 +1,183 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\colorlet{mygray}{black!30}
+\colorlet{mygreen}{green!60!blue}
+\colorlet{mymauve}{red!60!blue}
+\lstset{
+	backgroundcolor=\color{gray!10},  
+	basicstyle=\ttfamily,
+	columns=fullflexible,
+	breakatwhitespace=false,      
+	breaklines=true,                
+	captionpos=b,                    
+	commentstyle=\color{mygreen}, 
+	extendedchars=true,              
+	frame=single,                   
+	keepspaces=true,             
+	keywordstyle=\color{blue},      
+	language=c,                 
+	numbers=none,                
+	numbersep=5pt,                   
+	numberstyle=\tiny\color{blue}, 
+	rulecolor=\color{mygray},        
+	showspaces=false,               
+	showtabs=false,                 
+	stepnumber=5,                  
+	stringstyle=\color{mymauve},    
+	tabsize=3,                      
+	title=\lstname                
+}
+\usepackage[width=0.00cm, height=0.00cm, left=2.50cm, right=2.50cm, top=2.50cm, bottom=2.50cm]{geometry}
+
+
+\begin{document}
+\begin{titlepage}
+	\newcommand{\HRule}{\rule{\linewidth}{0.5mm}} % Defines a new command for the horizontal lines, change thickness here
+	\center % Center everything on the page
+	%-----------------------------------------------------------------------
+	%	LOGO SECTION
+	%-----------------------------------------------------------------------
+	
+	\includegraphics[scale = 0.9]{images/logo.png}\\[2cm] % Include a department/university logo - this will require the graphicx package
+	
+	%-----------------------------------------------------------------------
+	%	HEADING SECTIONS
+	%-----------------------------------------------------------------------
+	\text{\LARGE Fraunhofer IPA}\\[1.5cm] % Name of your university/college
+	\textsc{\Large Robotics and Assistance Systems}\\[0.5cm] % Major heading such as course name
+	%\textsc{\large Assignment 1}\\[0.5cm] % Minor heading such as course title
+	
+	%-----------------------------------------------------------------------
+	%	TITLE SECTION
+	%-----------------------------------------------------------------------
+	
+	\HRule \\[0.4cm]
+	{ \huge \bfseries Porting ROS 1 packages to ROS 2}\\[0.4cm] % Title of your document
+	\HRule \\[1.5cm]
+	
+	%-----------------------------------------------------------------------
+	%	AUTHOR SECTION
+	%-----------------------------------------------------------------------
+	\vspace{25mm}
+%	\begin{minipage}{0.9\textwidth}
+%		\begin{flushleft} \large
+%			
+%			\emph{Authors:}\\
+%			Ragesh \text{Ramachandran}\\
+%			Harsh \text{Deshpande}
+%			
+%		\end{flushleft}
+%	\end{minipage}
+%	~
+
+	%----------------------------------------------------------------------------------------
+	%	DATE SECTION
+	%----------------------------------------------------------------------
+	\vspace{15mm}	
+	{\large \today}\\[4cm]
+	%-----------------------------------------------------------------------
+	\vfill % Fill the rest of the page with whitespace
+	
+\end{titlepage}
+
+\tableofcontents
+\newpage
+\chapter{Installing ROS 2}
+
+\section{Set Locale}
+Make sure to set a locale that supports UTF-8. If you are in a minimal environment such as a Docker container, the locale may be set to something minimal like POSIX.
+\begin{lstlisting}
+sudo locale-gen en_US en_US.UTF-8
+sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+export LANG=en_US.UTF-8
+\end{lstlisting}
+
+\section{Add the ROS2 apt repository}
+To install the Debian packages you will need to add our Debian repository to your apt sources. First you will need to authorize our gpg key with apt like this
+\begin{lstlisting}
+sudo apt update && sudo apt install curl gnupg2 lsb-release
+curl http://repo.ros2.org/repos.key | sudo apt-key add -
+\end{lstlisting}
+And then add the repository to your sources list:
+\begin{lstlisting}
+sudo sh -c 'echo "deb [arch=amd64,arm64] http://packages.ros.org/ros2/ubuntu `lsb_release -cs` main" > /etc/apt/sources.list.d/ros2-latest.list'
+\end{lstlisting}
+
+\section{Install development tools and ROS tools}
+\begin{lstlisting}
+sudo apt update && sudo apt install -y \
+build-essential \
+cmake \
+git \
+python3-colcon-common-extensions \
+python3-lark-parser \
+python3-pip \
+python-rosdep \
+python3-vcstool \
+wget
+# install some pip packages needed for testing
+python3 -m pip install -U \
+argcomplete \
+flake8 \
+flake8-blind-except \
+flake8-builtins \
+flake8-class-newline \
+flake8-comprehensions \
+flake8-deprecated \
+flake8-docstrings \
+flake8-import-order \
+flake8-quotes \
+pytest-repeat \
+pytest-rerunfailures \
+pytest \
+pytest-cov \
+pytest-runner \
+setuptools
+# install Fast-RTPS dependencies
+sudo apt install --no-install-recommends -y \
+libasio-dev \
+libtinyxml2-dev
+\end{lstlisting}
+
+\section{Install dependencies using rosdep}
+\begin{lstlisting}
+sudo rosdep init
+rosdep update
+
+rosdep install --from-paths src --ignore-src --rosdistro crystal -y --skip-keys "console_bridge fastcdr fastrtps libopensplice67 libopensplice69 python3-lark-parser rti-connext-dds-5.3.1 urdfdom_headers"
+python3 -m pip install -U lark-parser
+\end{lstlisting}
+
+\section{Building the code in the Workspace}
+\begin{lstlisting}
+cd ~/ros2_ws/
+colcon build --symlink-install --packages-ignore qt_gui_cpp rqt_gui_cpp
+\end{lstlisting}
+\chapter{NodeHandle to NodeClass}
+
+\section{NodeHandle}
+A NodeHandle is an object which represents a ROS node. It provides startup and shutdown of the internal node inside a roscpp program and it provides an extra layer of namespace resolution that can make writing subcomponents easier.\\
+When the first \textit{ros::NodeHandle} is created it will call \textit{ros::start()}, and when the last \textit{ros::NodeHandle} is destroyed, it will call \textit{ros::shutdown()}.
+\begin{lstlisting}
+ros::NodeHandle nh;
+\end{lstlisting}
+
+\section{Node Class}
+\begin{lstlisting}
+ros::NodeHandle nh;
+\end{lstlisting}
+
+
+
+\chapter{Publisher Subscriber}
+
+\chapter{ROS Bridge}
+
+\chapter{ROS spin}
+\end{document}
